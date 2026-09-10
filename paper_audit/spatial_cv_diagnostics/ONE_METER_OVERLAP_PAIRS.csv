@@ -1,0 +1,2 @@
+sample_id_i,sample_id_j,group_i,group_j,distance_m,radius_m,overlap_area_m2,overlap_fraction_of_one_buffer,same_spatial_group,cross_train_validation_fold
+6,7,2,2,1.4991075088795789,1.0,0.4544928601449484,0.14466957058408403,True,False

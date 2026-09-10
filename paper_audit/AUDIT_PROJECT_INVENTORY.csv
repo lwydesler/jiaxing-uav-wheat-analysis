@@ -1,0 +1,81 @@
+path,name,size_mb,role
+/data/jiaxing/analysis/all_features_targets.csv,all_features_targets.csv,1.2662286758422852,multi-scale base output
+/data/jiaxing/analysis/correlation_summary.csv,correlation_summary.csv,0.02231597900390625,multi-scale base output
+/data/jiaxing/analysis/feature_importance.csv,feature_importance.csv,0.04219341278076172,multi-scale base output
+/data/jiaxing/analysis/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,multi-scale base output
+/data/jiaxing/analysis/model_metrics.csv,model_metrics.csv,0.01859283447265625,multi-scale base output
+/data/jiaxing/analysis/sample_rs_features.csv,sample_rs_features.csv,1.2625188827514648,multi-scale base output
+/data/jiaxing/analysis_1sqft_circle/all_features_targets.csv,all_features_targets.csv,0.4242219924926758,1ft2-scale base output
+/data/jiaxing/analysis_1sqft_circle/correlation_summary.csv,correlation_summary.csv,0.022464752197265625,1ft2-scale base output
+/data/jiaxing/analysis_1sqft_circle/feature_importance.csv,feature_importance.csv,0.04385566711425781,1ft2-scale base output
+/data/jiaxing/analysis_1sqft_circle/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,1ft2-scale base output
+/data/jiaxing/analysis_1sqft_circle/model_metrics.csv,model_metrics.csv,0.019964218139648438,1ft2-scale base output
+/data/jiaxing/analysis_1sqft_circle/sample_rs_features.csv,sample_rs_features.csv,0.42051219940185547,1ft2-scale base output
+/data/jiaxing/analysis_point/all_features_targets.csv,all_features_targets.csv,0.3959007263183594,point-scale base output
+/data/jiaxing/analysis_point/correlation_summary.csv,correlation_summary.csv,0.022170066833496094,point-scale base output
+/data/jiaxing/analysis_point/feature_importance.csv,feature_importance.csv,0.042817115783691406,point-scale base output
+/data/jiaxing/analysis_point/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,point-scale base output
+/data/jiaxing/analysis_point/model_metrics.csv,model_metrics.csv,0.018776893615722656,point-scale base output
+/data/jiaxing/analysis_point/sample_rs_features.csv,sample_rs_features.csv,0.39219093322753906,point-scale base output
+/data/jiaxing/audit_materials/01_field_samples/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,project result
+/data/jiaxing/audit_materials/02_features_by_scale/multi_scale/all_features_targets.csv,all_features_targets.csv,1.2662286758422852,project result
+/data/jiaxing/audit_materials/02_features_by_scale/multi_scale/correlation_summary.csv,correlation_summary.csv,0.02231597900390625,project result
+/data/jiaxing/audit_materials/02_features_by_scale/multi_scale/feature_importance.csv,feature_importance.csv,0.04219341278076172,project result
+/data/jiaxing/audit_materials/02_features_by_scale/multi_scale/model_metrics.csv,model_metrics.csv,0.01859283447265625,project result
+/data/jiaxing/audit_materials/02_features_by_scale/multi_scale/sample_rs_features.csv,sample_rs_features.csv,1.2625188827514648,project result
+/data/jiaxing/audit_materials/02_features_by_scale/one_sqft/all_features_targets.csv,all_features_targets.csv,0.4242219924926758,project result
+/data/jiaxing/audit_materials/02_features_by_scale/one_sqft/correlation_summary.csv,correlation_summary.csv,0.022464752197265625,project result
+/data/jiaxing/audit_materials/02_features_by_scale/one_sqft/feature_importance.csv,feature_importance.csv,0.04385566711425781,project result
+/data/jiaxing/audit_materials/02_features_by_scale/one_sqft/model_metrics.csv,model_metrics.csv,0.019964218139648438,project result
+/data/jiaxing/audit_materials/02_features_by_scale/one_sqft/sample_rs_features.csv,sample_rs_features.csv,0.42051219940185547,project result
+/data/jiaxing/audit_materials/02_features_by_scale/point/all_features_targets.csv,all_features_targets.csv,0.3959007263183594,project result
+/data/jiaxing/audit_materials/02_features_by_scale/point/correlation_summary.csv,correlation_summary.csv,0.022170066833496094,project result
+/data/jiaxing/audit_materials/02_features_by_scale/point/feature_importance.csv,feature_importance.csv,0.042817115783691406,project result
+/data/jiaxing/audit_materials/02_features_by_scale/point/model_metrics.csv,model_metrics.csv,0.018776893615722656,project result
+/data/jiaxing/audit_materials/02_features_by_scale/point/sample_rs_features.csv,sample_rs_features.csv,0.39219093322753906,project result
+/data/jiaxing/audit_materials/03_code/predict_flower_rat_map.py,predict_flower_rat_map.py,0.014776229858398438,analysis or mapping code
+/data/jiaxing/audit_materials/03_code/predict_raster_map.py,predict_raster_map.py,0.012795448303222656,analysis or mapping code
+/data/jiaxing/audit_materials/03_code/rs_field_analysis.py,rs_field_analysis.py,0.03171062469482422,analysis or mapping code
+/data/jiaxing/audit_materials/03_code/supplement_experiments.py,supplement_experiments.py,0.02418041229248047,analysis or mapping code
+/data/jiaxing/audit_materials/04_spatial_distribution/data.shp,data.shp,0.001964569091796875,field sample point vector
+/data/jiaxing/audit_materials/05_supplement_outputs/best_correlation_by_scale.csv,best_correlation_by_scale.csv,0.0027074813842773438,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/best_model_by_scale.csv,best_model_by_scale.csv,0.009870529174804688,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/disease_classification_metrics.csv,disease_classification_metrics.csv,0.00273895263671875,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/feature_group_summary.csv,feature_group_summary.csv,0.009060859680175781,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/model_comparison_all.csv,model_comparison_all.csv,0.060423851013183594,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/scale_comparison_top_correlations.csv,scale_comparison_top_correlations.csv,0.058442115783691406,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/target_distribution_summary.csv,target_distribution_summary.csv,0.000461578369140625,derived supplementary summary
+/data/jiaxing/audit_materials/05_supplement_outputs/temporal_feature_summary.csv,temporal_feature_summary.csv,0.0046710968017578125,derived supplementary summary
+/data/jiaxing/client_delivery/01_raw_data/wang/0418c.tif,0418c.tif,188.1362590789795,raw_or_aligned_raster_input; not copied to paper_audit bundle
+/data/jiaxing/client_delivery/01_raw_data/wang/0510c.tif,0510c.tif,198.72324562072754,raw_or_aligned_raster_input; not copied to paper_audit bundle
+/data/jiaxing/client_delivery/01_raw_data/wang/data.shp,data.shp,0.001964569091796875,field sample point vector
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/all_features_targets.csv,all_features_targets.csv,0.4242219924926758,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/correlation_summary.csv,correlation_summary.csv,0.022464752197265625,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/feature_importance.csv,feature_importance.csv,0.04385566711425781,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/model_metrics.csv,model_metrics.csv,0.019964218139648438,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_1sqft_circle/sample_rs_features.csv,sample_rs_features.csv,0.42051219940185547,1ft2-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/all_features_targets.csv,all_features_targets.csv,0.3959007263183594,point-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/correlation_summary.csv,correlation_summary.csv,0.022170066833496094,point-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/feature_importance.csv,feature_importance.csv,0.042817115783691406,point-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/field_samples_clean.csv,field_samples_clean.csv,0.00391387939453125,point-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/model_metrics.csv,model_metrics.csv,0.018776893615722656,point-scale base output
+/data/jiaxing/client_delivery/02_analysis_results/analysis_point/sample_rs_features.csv,sample_rs_features.csv,0.39219093322753906,point-scale base output
+/data/jiaxing/client_delivery/04_scripts/predict_flower_rat_map.py,predict_flower_rat_map.py,0.014776229858398438,analysis or mapping code
+/data/jiaxing/client_delivery/04_scripts/predict_raster_map.py,predict_raster_map.py,0.012795448303222656,analysis or mapping code
+/data/jiaxing/client_delivery/04_scripts/rs_field_analysis.py,rs_field_analysis.py,0.03171062469482422,analysis or mapping code
+/data/jiaxing/predict_flower_rat_map.py,predict_flower_rat_map.py,0.014776229858398438,analysis or mapping code
+/data/jiaxing/predict_raster_map.py,predict_raster_map.py,0.012795448303222656,analysis or mapping code
+/data/jiaxing/rs_field_analysis.py,rs_field_analysis.py,0.03171062469482422,analysis or mapping code
+/data/jiaxing/supplement_experiments.py,supplement_experiments.py,0.02418041229248047,analysis or mapping code
+/data/jiaxing/supplement_experiments/best_correlation_by_scale.csv,best_correlation_by_scale.csv,0.0027074813842773438,derived supplementary summary
+/data/jiaxing/supplement_experiments/best_model_by_scale.csv,best_model_by_scale.csv,0.009870529174804688,derived supplementary summary
+/data/jiaxing/supplement_experiments/disease_classification_metrics.csv,disease_classification_metrics.csv,0.00273895263671875,derived supplementary summary
+/data/jiaxing/supplement_experiments/feature_group_summary.csv,feature_group_summary.csv,0.009060859680175781,derived supplementary summary
+/data/jiaxing/supplement_experiments/model_comparison_all.csv,model_comparison_all.csv,0.060423851013183594,derived supplementary summary
+/data/jiaxing/supplement_experiments/scale_comparison_top_correlations.csv,scale_comparison_top_correlations.csv,0.058442115783691406,derived supplementary summary
+/data/jiaxing/supplement_experiments/target_distribution_summary.csv,target_distribution_summary.csv,0.000461578369140625,derived supplementary summary
+/data/jiaxing/supplement_experiments/temporal_feature_summary.csv,temporal_feature_summary.csv,0.0046710968017578125,derived supplementary summary
+/data/jiaxing/wang/0418c.tif,0418c.tif,188.1362590789795,raw_or_aligned_raster_input; not copied to paper_audit bundle
+/data/jiaxing/wang/0510c.tif,0510c.tif,198.72324562072754,raw_or_aligned_raster_input; not copied to paper_audit bundle
+/data/jiaxing/wang/data.shp,data.shp,0.001964569091796875,field sample point vector

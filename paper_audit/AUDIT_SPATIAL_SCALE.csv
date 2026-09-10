@@ -1,0 +1,6 @@
+scale,scale_label,radius_m,area_m2,theoretical_pixel_count,actual_valid_pixel_median,actual_valid_pixel_min,actual_valid_pixel_max,overlapping_sample_fraction,mean_overlap_fraction,max_overlap_fraction,mean_overlap_neighbor_count,train_test_overlap_risk,boundary_crossing_risk,notes
+point,点采样,0.0,0.0033097009000000338,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,none,无法核实：缺少试验小区边界或样方多边形,Point sampling is a single pixel.
+one_sqft,1 ft²,0.172,0.09294087706380043,28.0813523251601,29.0,26.0,31.0,0.0,0.0,0.0,0.0,low,无法核实：缺少试验小区边界或样方多边形,Circle buffer radius in meters; overlap evaluated among Flower_rat-valid samples.
+r0p3,0.3 m,0.3,0.2827433388230814,85.42866783614149,85.0,83.0,89.0,0.0,0.0,0.0,0.0,low,无法核实：缺少试验小区边界或样方多边形,Circle buffer radius in meters; overlap evaluated among Flower_rat-valid samples.
+r0p5,0.5 m,0.5,0.7853981633974483,237.301855100393,238.0,234.0,242.0,0.0,0.0,0.0,0.0,low,无法核实：缺少试验小区边界或样方多边形,Circle buffer radius in meters; overlap evaluated among Flower_rat-valid samples.
+r1,1.0 m,1.0,3.141592653589793,949.207420401572,948.0,943.0,955.0,0.06060606060606061,0.008767852762671759,0.14466957058408403,0.06060606060606061,moderate,无法核实：缺少试验小区边界或样方多边形,Circle buffer radius in meters; overlap evaluated among Flower_rat-valid samples.

@@ -1,0 +1,6 @@
+test_group,validation_sample_count,training_sample_count,train_validation_overlap_pair_count,validation_samples_with_training_overlap,max_overlap_fraction_of_one_buffer,mean_overlap_fraction_of_one_buffer
+0,2,31,0,0,0.0,0.0
+1,10,23,0,0,0.0,0.0
+2,7,26,0,0,0.0,0.0
+3,8,25,0,0,0.0,0.0
+4,6,27,0,0,0.0,0.0

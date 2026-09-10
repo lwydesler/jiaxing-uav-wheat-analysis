@@ -1,0 +1,6 @@
+scale,scale_label,sample_count,total_features,raw_band_features,predefined_index_features,pairwise_nd_features,cross_date_features,stat_mean_features,stat_median_features,stat_p25_features,stat_p75_features,all_missing_features,features_with_any_missing,constant_features,near_constant_features,duplicate_columns,inf_values_after_replacement,valid_count_feature_count,leakage_column_count,notes
+point,点采样,70,378,156,120,90,174,135,135,30,30,0,0,24,24,241,0,12,0,"Feature names parsed from column names; formula-level verification based on source code, not raw recomputation."
+one_sqft,1 ft²,70,378,156,120,90,174,135,135,30,30,0,0,0,0,11,0,12,0,"Feature names parsed from column names; formula-level verification based on source code, not raw recomputation."
+r0p3,0.3 m,70,378,156,120,90,174,135,135,30,30,0,0,0,0,11,0,12,0,"Feature names parsed from column names; formula-level verification based on source code, not raw recomputation."
+r0p5,0.5 m,70,378,156,120,90,174,135,135,30,30,0,0,0,0,11,0,12,0,"Feature names parsed from column names; formula-level verification based on source code, not raw recomputation."
+r1,1.0 m,70,378,156,120,90,174,135,135,30,30,0,0,0,0,11,0,12,0,"Feature names parsed from column names; formula-level verification based on source code, not raw recomputation."

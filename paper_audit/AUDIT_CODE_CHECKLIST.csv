@@ -1,0 +1,16 @@
+audit_item,status,evidence_file,evidence_lines,impact,required_action
+使用交叉验证方式,是,rs_field_analysis.py,"642,650",LOOCV for n<=40; random 5-fold otherwise.,Flower_rat currently uses LOOCV in original workflow.
+报告是否为折外预测,是,rs_field_analysis.py,"650,682-694",cross_val_predict produces out-of-fold predictions.,"Keep reporting as CV, not training fit."
+缺失值填补在训练折内部,是,rs_field_analysis.py,"546-590,650",SimpleImputer is inside Pipeline passed to cross_val_predict.,No action for imputation.
+标准化在训练折内部,是,rs_field_analysis.py,"546-590,650",StandardScaler is inside Pipeline for linear/PLS models.,No action for scaling.
+特征筛选在训练折内部,否,rs_field_analysis.py,"598-611,825-826",Features are selected from full-data correlation table before CV.,Rerun with feature selection inside Pipeline/nested CV.
+超参数选择在训练折内部,部分满足,rs_field_analysis.py,553-590,Most parameters are fixed; no inner tuning is used.,"If tuning is reported, use nested CV."
+是否先用全数据选择最高相关特征再CV,是,rs_field_analysis.py,"598-611,825-826",select_features_for_target uses corr_top computed on full dataset.,Treat original model R2 as optimistic.
+是否使用相同数据选模型并报告最终模型,是,supplement_experiments.py,327-342,best_model_by_scale selects best model from same CV result table.,Use an external validation or call it model-selection result.
+不同尺度验证划分一致,部分满足,rs_field_analysis.py,642,Same deterministic LOOCV or random_state 42; multi-scale table combines scales.,Strict scale audit uses common spatial folds.
+最终R2是否由合并折外预测计算,是,rs_field_analysis.py,"650,682-694",Metrics are computed from cross_val_predict outputs.,Mention leakage risk separately.
+是否报告均值预测基线,否,rs_field_analysis.py,543-594,Original model list lacks DummyRegressor.,Add DummyRegressor baseline in audit.
+预测图模型是否用全数据重训,是,predict_flower_rat_map.py,"104-122,367-383",Mapping model is trained on all available target samples.,Map should be described as trend map.
+预测图是否标注探索性,是,predict_flower_rat_map.py,"4-10,404",Script notes limited skill and exploratory trend map.,Keep this limitation in paper.
+是否有小区/品种/处理/重复区分组字段,无法核实,field_samples_clean.csv/data.shp,columns inspected by audit script,No explicit grouping fields found in current analysis CSV.,Request experimental design metadata.
+是否检查缓冲区重叠跨折,原流程未检查,rs_field_analysis.py,642,Original random/LOOCV split does not account for spatial overlap.,Use spatial CV or Group CV.

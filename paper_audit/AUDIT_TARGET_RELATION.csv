@@ -1,0 +1,2 @@
+target,valid_pair_n,pearson_r,spearman_r,max_abs_error_if_denominator_30,all_match_flower_rat_equals_num_div_30_times_100_tol_0p02,inferred_total_median,inferred_total_min,inferred_total_max,interpretation
+Flower_num_vs_Flower_rat,33,0.9999999966450572,1.0,0.0033333333333445125,True,30.0,29.997272975184075,30.03003003003003,Flower_rat is a near-linear expression of Flower_num with denominator 30.

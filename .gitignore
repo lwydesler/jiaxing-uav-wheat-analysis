@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local Git metadata workaround for this mounted workspace
+.git/
+.gitrepo/
+
+# OS/editor files
+.DS_Store
+*.swp
+*.tmp
+
+# Remote sensing rasters and GDAL sidecars
+*.tif
+*.tiff
+*.vrt
+*.ovr
+*.aux.xml
+
+# Archives and large delivery bundles
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Raw or heavy project data
+wang/
+pif/
+audit_materials/
+client_delivery/
+client_delivery/01_raw_data/
+client_delivery/02_analysis_results/
+client_delivery/03_prediction_maps/
+prediction_maps/
+
+# Generated caches
+.pytest_cache/
+.mypy_cache/

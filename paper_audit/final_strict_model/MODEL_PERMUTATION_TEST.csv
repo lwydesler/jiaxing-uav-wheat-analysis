@@ -1,0 +1,6 @@
+target,scale,feature_set,model,n_permutations,observed_r2,permutation_p,random_seed,test_definition
+Flower_rat,point,0510_single_date,Ridge,200,0.08201377083572625,0.04477611940298507,20260828,Permuted Flower_rat labels; each permutation reruns full outer spatial CV pipeline.
+Flower_rat,one_sqft,0510_single_date,Ridge,200,0.011926545587461312,0.0945273631840796,20260828,Permuted Flower_rat labels; each permutation reruns full outer spatial CV pipeline.
+Flower_rat,r0p3,0510_single_date,Ridge,200,0.17744757671760625,0.009950248756218905,20260828,Permuted Flower_rat labels; each permutation reruns full outer spatial CV pipeline.
+Flower_rat,r0p5,0510_single_date,Ridge,200,0.11198036554660562,0.014925373134328358,20260828,Permuted Flower_rat labels; each permutation reruns full outer spatial CV pipeline.
+Flower_rat,r1,0510_single_date,Ridge,200,0.2906570905624133,0.004975124378109453,20260828,Permuted Flower_rat labels; each permutation reruns full outer spatial CV pipeline.
