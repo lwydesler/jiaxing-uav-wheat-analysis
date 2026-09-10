@@ -34,6 +34,8 @@ client_delivery/01_raw_data/
 client_delivery/02_analysis_results/
 client_delivery/03_prediction_maps/
 prediction_maps/
+sensitive_index_maps/
+paper_audit/correlation_corrected_*/
 
 # Generated caches
 .pytest_cache/

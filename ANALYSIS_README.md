@@ -1,5 +1,9 @@
 # UAV Field Data Analysis
 
+For corrected correlation resampling and May 10 sensitive-index mapping, see
+[PAPER_CORRECTIONS.md](PAPER_CORRECTIONS.md). Historical bootstrap intervals and
+stability frequencies must be regenerated before use in the manuscript.
+
 `rs_field_analysis.py` analyzes relationships between the two original UAV images and the field sampling data. It does not use the PIF-corrected April 18 image.
 
 ## Inputs

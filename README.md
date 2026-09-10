@@ -1,5 +1,7 @@
 # PIF Standard Deviation Matching
 
+论文相关性重算与5月10日敏感指数制图，请参见 [PAPER_CORRECTIONS.md](PAPER_CORRECTIONS.md)。该入口修正Spearman重采样实现，并将新结果与历史模型结果分开保存。
+
 `pif_std_match.py` uses PIF polygon areas to apply relative radiometric correction to a cloudy UAV multispectral image so it matches a sunny reference image inside the PIF areas.
 
 The per-band correction is:

@@ -41,6 +41,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.exceptions import ConvergenceWarning, FitFailedWarning
 
+try:
+    from .correlation_resampling import resample_correlations
+except ImportError:  # Direct script invocation.
+    from correlation_resampling import resample_correlations
+
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 warnings.filterwarnings("ignore", category=FitFailedWarning)
@@ -558,55 +563,12 @@ def correlation_audit(n_bootstrap: int = 500, n_permutation: int = 300) -> pd.Da
         corr = pd.DataFrame(records)
         corr["fdr_q_within_scale"] = bh_fdr(corr["spearman_p"])
 
-        # Max-stat permutation repeats selection of the maximum absolute Spearman among all candidate features.
-        # For speed, permutations and bootstrap use Pearson correlations on globally ranked variables,
-        # which is algebraically Spearman for the original sample and a close resampling approximation.
-        observed_max = float(corr["abs_spearman_r"].max())
-        x_rank = pd.DataFrame(rank_matrix(x), columns=cols).to_numpy(dtype=float)
-        y_rank = yv.rank(method="average").to_numpy(dtype=float)
-        perm_max = []
-        for _ in range(n_permutation):
-            perm_y = rng.permutation(y_rank)
-            perm_max.append(np.nanmax(fast_abs_corr_from_ranked(x_rank, perm_y)))
-        max_stat_p = (1.0 + float(np.sum(np.asarray(perm_max) >= observed_max))) / (n_permutation + 1.0)
-        corr["max_stat_permutation_p"] = max_stat_p
-
-        # Bootstrap ranks and CIs for top features.
-        top_features = corr.sort_values("abs_spearman_r", ascending=False).head(30)["feature"].tolist()
-        top_counts = {feature: {"top1": 0, "top5": 0, "top10": 0, "values": []} for feature in top_features}
-        col_index = {col: i for i, col in enumerate(cols)}
-        for _ in range(n_bootstrap):
-            idx = rng.integers(0, len(y_rank), len(y_rank))
-            boot_scores = fast_abs_corr_from_ranked(x_rank[idx], y_rank[idx])
-            order = np.argsort(np.nan_to_num(boot_scores, nan=-1.0))[::-1]
-            top1 = {cols[i] for i in order[:1]}
-            top5 = {cols[i] for i in order[:5]}
-            top10 = {cols[i] for i in order[:10]}
-            for feature in top_features:
-                if feature in top1:
-                    top_counts[feature]["top1"] += 1
-                if feature in top5:
-                    top_counts[feature]["top5"] += 1
-                if feature in top10:
-                    top_counts[feature]["top10"] += 1
-                j = col_index[feature]
-                score = fast_abs_corr_from_ranked(x_rank[np.ix_(idx, [j])], y_rank[idx])[0]
-                if np.isfinite(score):
-                    sign = np.sign(corr.loc[corr["feature"] == feature, "spearman_r"].iloc[0])
-                    top_counts[feature]["values"].append(sign * score)
-        corr["bootstrap_ci_lower"] = np.nan
-        corr["bootstrap_ci_upper"] = np.nan
-        corr["bootstrap_top1_frequency"] = np.nan
-        corr["bootstrap_top5_frequency"] = np.nan
-        corr["bootstrap_top10_frequency"] = np.nan
-        for feature, vals in top_counts.items():
-            feature_mask = corr["feature"] == feature
-            arr = np.asarray(vals["values"], dtype=float)
-            corr.loc[feature_mask, "bootstrap_ci_lower"] = float(np.nanpercentile(arr, 2.5)) if len(arr) else np.nan
-            corr.loc[feature_mask, "bootstrap_ci_upper"] = float(np.nanpercentile(arr, 97.5)) if len(arr) else np.nan
-            corr.loc[feature_mask, "bootstrap_top1_frequency"] = vals["top1"] / n_bootstrap
-            corr.loc[feature_mask, "bootstrap_top5_frequency"] = vals["top5"] / n_bootstrap
-            corr.loc[feature_mask, "bootstrap_top10_frequency"] = vals["top10"] / n_bootstrap
+        # Resample raw paired observations, rerank each draw, and retain its sign.
+        summaries = resample_correlations(
+            x.to_numpy(float), yv.to_numpy(float), n_bootstrap, n_permutation, rng
+        )
+        for name, values in summaries.items():
+            corr[name] = values
         per_scale_frames[key] = corr
         all_rows.append(corr)
 
@@ -638,6 +600,7 @@ def correlation_audit(n_bootstrap: int = 500, n_permutation: int = 300) -> pd.Da
         "fdr_q_global",
         "bootstrap_ci_lower",
         "bootstrap_ci_upper",
+        "bootstrap_valid_draws",
         "bootstrap_top1_frequency",
         "bootstrap_top5_frequency",
         "bootstrap_top10_frequency",
