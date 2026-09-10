@@ -5,10 +5,20 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from make_paper_maps import feature_cube, measured_samples, fit_final_model, predict_selected, clip_predictions, NODATA
+from make_paper_maps import feature_cube, measured_samples, fit_final_model, predict_selected, clip_predictions, map_window, NODATA
+from rasterio.transform import from_origin
+from rasterio.windows import Window
 
 
 class PaperMapTests(unittest.TestCase):
+    def test_original_study_extent_is_independent_of_full_image(self):
+        transform = from_origin(0, 100, .5, .5)
+        coords = np.array([[30., 40.], [50., 60.]])
+        # Original sample bounding box plus 8 m: x=22..58, y=32..68.
+        self.assertEqual(map_window(transform, 200, 200, coords), Window(44, 64, 72, 72))
+        self.assertEqual(map_window(transform, 200, 200, coords, "full-image"), Window(0, 0, 200, 200))
+        self.assertEqual(map_window(transform, 200, 200, np.array([[2., 98.], [5., 95.]])), Window(0, 0, 26, 26))
+
     def test_clip_bounds_without_filling_nodata(self):
         raw = np.array([-20., 0., 55., 100., 130., NODATA, np.nan, 70.])
         valid = np.array([True, True, True, True, True, False, True, False])

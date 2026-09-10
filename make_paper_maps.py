@@ -18,7 +18,7 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 import pandas as pd
 import rasterio
-from rasterio.windows import Window, bounds as window_bounds
+from rasterio.windows import Window, from_bounds, bounds as window_bounds
 
 from map_sensitive_index import circular_footprint
 from paper_audit.audit_scripts.run_final_strict_model import (
@@ -143,6 +143,23 @@ def clip_predictions(prediction, valid, lower=0., upper=100.):
     return result
 
 
+def map_window(transform, width, height, coords, extent="study-area"):
+    """Keep the original study-area rectangle, independently of prediction masks."""
+    if extent == "full-image":
+        return Window(0, 0, width, height)
+    if extent != "study-area":
+        raise ValueError(f"Unknown map extent: {extent}")
+    # Same 8 m margin and pixel rounding as the original publication maps.
+    requested = from_bounds(coords[:, 0].min() - 8, coords[:, 1].min() - 8,
+                            coords[:, 0].max() + 8, coords[:, 1].max() + 8, transform)
+    c0, r0 = max(0, int(np.floor(requested.col_off))), max(0, int(np.floor(requested.row_off)))
+    c1 = min(width, int(np.ceil(requested.col_off + requested.width)))
+    r1 = min(height, int(np.ceil(requested.row_off + requested.height)))
+    if c1 <= c0 or r1 <= r0:
+        raise ValueError("Study area does not intersect the image")
+    return Window(c0, r0, c1 - c0, r1 - r0)
+
+
 def font_setup(font_path=None):
     if font_path:
         font_manager.fontManager.addfont(str(font_path))
@@ -238,6 +255,8 @@ def main(argv=None):
     parser.add_argument("--dpi", type=int, default=600)
     parser.add_argument("--clip-min", type=float, default=0., help="Lower prediction bound in percent")
     parser.add_argument("--clip-max", type=float, default=100., help="Upper prediction bound in percent")
+    parser.add_argument("--extent", choices=("study-area", "full-image"), default="study-area",
+                        help="Keep original study-area map extent (default), or use entire source raster")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
     if args.tile_size < 1 or args.dpi < 72:
@@ -268,8 +287,9 @@ def main(argv=None):
             raise ValueError("Expected six bands on a north-up, unrotated grid")
         if not all(src.bounds.left <= x < src.bounds.right and src.bounds.bottom < y <= src.bounds.top for x, y in coords):
             raise ValueError("Some of the 33 measured sites fall outside the image")
-        c0, r0, c1, r1 = 0, 0, src.width, src.height
-        roi = Window(c0, r0, c1 - c0, r1 - r0)
+        roi = map_window(gt, src.width, src.height, coords, args.extent)
+        c0, r0 = int(roi.col_off), int(roi.row_off)
+        c1, r1 = c0 + int(roi.width), r0 + int(roi.height)
         roi_transform = src.window_transform(roi)
         crop = stack.enter_context(rasterio.open(args.mask)) if args.mask else None
         if crop and (crop.count != 1 or crop.shape != src.shape or crop.transform != gt or crop.crs != src.crs):
@@ -290,6 +310,8 @@ def main(argv=None):
                             radius_m="1.0", training_n="33", clipping="None",
                             feature_order="Band statistics first, then spectral indices", selected_features=json.dumps(selected))
         clipped.update_tags(clipping=f"[{args.clip_min}, {args.clip_max}]", role="Full-area publication map")
+        for dst in (raw, supported, clipped):
+            dst.update_tags(map_extent=args.extent, prediction_domain="All valid locations in map rectangle; no sample-hull restriction")
         supported.update_tags(role="Training-feature range diagnostic only; not used for publication figure")
         for row in range(r0, r1, args.tile_size):
             height = min(args.tile_size, r1-row)
@@ -343,7 +365,10 @@ def main(argv=None):
                         candidate_features=candidates, selected_features=selected, sample_ids=samples.sample_id.tolist(),
                         input_table_sha256=hashlib.sha256(table.read_bytes()).hexdigest(), image=str(image),
                         pixel_size_m=[gt.a, -gt.e], footprint_pixels=int(footprint.sum()),
-                        prediction_domain="Full source raster extent, intersect optional wheat mask; no sample hull restriction",
+                        map_extent=args.extent,
+                        map_bounds_m=list(window_bounds(roi, gt)),
+                        map_shape=[int(roi.height), int(roi.width)],
+                        prediction_domain="Entire selected map rectangle, intersect optional wheat mask; no sample hull restriction",
                         displayed_prediction="prediction_clipped.tif; valid source centers and finite features; no training-range exclusion",
                         clipping_min_percent=args.clip_min, clipping_max_percent=args.clip_max,
                         diagnostic_prediction="prediction_supported.tif retains per-feature min/max screening for comparison only",

@@ -1,13 +1,15 @@
 # 论文分析修正与运行命令
 
-## 33个调查样点图与全区截断预测分布图
+## 33个调查样点图与研究区全覆盖预测图
+
+默认保持最初论文图的研究区范围与版式：33个样点外包矩形向外扩展8 m，并裁到影像边界。在这个矩形内部进行完整预测，不再按样点凸包或训练特征范围挖空。这里的“全覆盖”指原研究区图内的有效区域，不是扩大到整幅无人机影像。
 
 如果 `/data/jiaxing` 只是数据目录，代码已单独克隆到 `/data/jiaxing/code`，执行：
 
 ```bash
 git -C /data/jiaxing/code pull --ff-only origin main
 conda install -n rs -c conda-forge numpy pandas scipy scikit-learn matplotlib rasterio
-conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py --data-root /data/jiaxing --clip-min 0 --clip-max 100
+conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py --data-root /data/jiaxing --extent study-area --clip-min 0 --clip-max 100
 ```
 
 若还没有代码仓库，先运行 `git clone https://github.com/lwydesler/jiaxing-uav-wheat-analysis.git /data/jiaxing/code`。
@@ -16,8 +18,8 @@ conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py
 
 - `fig1_samples_33.png`、`.pdf`：仅显示有扬花率记录的33个样点，包含真实零值，排除空记录。以5月10日RGB合成为底图。
 - `fig2_flowering_prediction.png`、`.pdf`：5月10日、1.0 m圆形窗口、固定岭回归模型的预测分布。
-- `prediction_raw.tif`：整幅影像有效位置的原始预测值，不受样点凸包或训练特征范围限制。
-- `prediction_clipped.tif`：上下限截断后的全区预测值，用于PNG/PDF论文图；默认小于0的值设为0，大于100的值设为100。
+- `prediction_raw.tif`：研究区矩形范围内有效位置的原始预测值，不受样点凸包或训练特征范围限制。
+- `prediction_clipped.tif`：上下限截断后的研究区全覆盖预测值，用于PNG/PDF论文图；默认小于0的值设为0，大于100的值设为100。
 - `prediction_supported.tif`：保留训练特征范围筛查的辅助对照，不用于新版论文图，该文件仍可能有空洞。
 - `mapped_samples_33.csv`、`MAP_MANIFEST.json`：实际绘图样点、选中特征、范围说明及像元计数。
 
@@ -25,7 +27,7 @@ conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py
 
 预测模型复用最终严格审计的候选列选择规则及固定流水线：训练集内中位数填补、SelectKBest(k=10)、标准化、Ridge(alpha=10)。制图时使用33个样点拟合最终模型，影像中只计算该模型实际选中的10个特征。每个窗口先计算波段统计量，再构建指数，与样点特征保持同一计算顺序。此流程生成模型预测图；前面的 `map_sensitive_index.py` 生成无量纲敏感指数图，两者不是同一张图。
 
-默认预测范围和GeoTIFF网格与整幅输入影像一致，取消样点凸包裁剪及训练特征范围对论文图的屏蔽。全区指整幅影像，并不自动识别小麦或实际试验田边界。若提供与影像完全对齐的小麦区域单波段栅格，可增加 `--mask /path/to/wheat_mask.tif`，仅保留掩膜正值区域。窗口统计仍使用原始邻域，掩膜仅限制输出位置。源像元中心无效、必要特征不可计算及掩膜排除的位置仍保留NoData，不插值填补。
+`--extent study-area`（默认）恢复原研究区显示范围，保留输入影像分辨率及网格对齐；只有显式指定 `--extent full-image` 才扩大到整幅影像。两种模式均取消样点凸包裁剪及训练特征范围对论文图的屏蔽，不自动识别小麦或实际试验田边界。若提供与影像完全对齐的小麦区域单波段栅格，可增加 `--mask /path/to/wheat_mask.tif`，仅保留掩膜正值区域。窗口统计仍读取原图完整邻域，掩膜仅限制输出位置。源像元中心无效、必要特征不可计算及掩膜排除的位置仍保留NoData，不插值填补。
 
 上下限以百分点输入，须满足 `0 <= clip-min < clip-max <= 100`。截断公式为 `display = min(clip_max, max(clip_min, raw))`，仅应用于有效预测像元，不会把NoData截断成零。`MAP_MANIFEST.json` 保存上下限及低于/高于上下限的像元数量。原始输出不变，截断不改变此前交叉验证指标，也不表明全区外推精度提高。论文图注可写：“基于33个样点拟合的1.0 m尺度岭回归模型全区预测结果，预测扬花率按0%～100%截断。”
 
