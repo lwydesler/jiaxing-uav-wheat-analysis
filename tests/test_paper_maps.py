@@ -5,10 +5,20 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from make_paper_maps import feature_cube, measured_samples, fit_final_model, predict_selected
+from make_paper_maps import feature_cube, measured_samples, fit_final_model, predict_selected, clip_predictions, NODATA
 
 
 class PaperMapTests(unittest.TestCase):
+    def test_clip_bounds_without_filling_nodata(self):
+        raw = np.array([-20., 0., 55., 100., 130., NODATA, np.nan, 70.])
+        valid = np.array([True, True, True, True, True, False, True, False])
+        np.testing.assert_array_equal(clip_predictions(raw, valid),
+                                      [0., 0., 55., 100., 100., NODATA, NODATA, NODATA])
+        np.testing.assert_array_equal(clip_predictions(raw, valid, 10., 90.),
+                                      [10., 10., 55., 90., 90., NODATA, NODATA, NODATA])
+        with self.assertRaises(ValueError):
+            clip_predictions(raw, valid, 100., 0.)
+
     def test_missing_flowering_sites_excluded_but_zero_retained(self):
         frame = pd.DataFrame(dict(sample_id=range(1, 36), x=range(35), y=range(35),
                                   Flower_rat=[0] + [50]*32 + [np.nan, np.nan]))

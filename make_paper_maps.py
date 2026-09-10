@@ -18,9 +18,7 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 import pandas as pd
 import rasterio
-from rasterio.features import geometry_mask
-from rasterio.windows import Window, from_bounds, bounds as window_bounds
-from scipy.spatial import ConvexHull
+from rasterio.windows import Window, bounds as window_bounds
 
 from map_sensitive_index import circular_footprint
 from paper_audit.audit_scripts.run_final_strict_model import (
@@ -135,6 +133,16 @@ def predict_selected(model, x):
     return model.named_steps["model"].predict(model.named_steps["scaler"].transform(x))
 
 
+def clip_predictions(prediction, valid, lower=0., upper=100.):
+    """Bound finite predictions only; never turn NoData into zero flowering."""
+    if not np.isfinite([lower, upper]).all() or not 0 <= lower < upper <= 100:
+        raise ValueError("Clipping bounds must satisfy 0 <= min < max <= 100")
+    result = np.full(prediction.shape, NODATA, dtype="float32")
+    valid = valid & np.isfinite(prediction) & (prediction != NODATA)
+    result[valid] = np.clip(prediction[valid], lower, upper)
+    return result
+
+
 def font_setup(font_path=None):
     if font_path:
         font_manager.fontManager.addfont(str(font_path))
@@ -173,7 +181,8 @@ def decorate(ax, extent, chinese):
     ax.text(x + length / 2, y + (top - bottom) * .018, f"{length:g} m", ha="center", path_effects=effects)
 
 
-def export_figures(src, roi, samples, display_path, out, chinese, label_ids=False, dpi=600):
+def export_figures(src, roi, samples, display_path, out, chinese, label_ids=False, dpi=600,
+                   clip_min=0., clip_max=100.):
     left, bottom, right, top = window_bounds(roi, src.transform)
     extent = (left, right, bottom, top)
     ratio = min(1, 1800 / max(roi.width, roi.height))
@@ -186,9 +195,6 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         low, high = np.percentile(valid, [2, 98])
         rgb[i] = np.clip((rgb[i] - low) / max(high - low, 1e-6), 0, 1)
     rgb = np.nan_to_num(rgb, nan=1).transpose(1, 2, 0)
-    coords = samples[["x", "y"]].to_numpy()
-    hull = coords[ConvexHull(coords).vertices]
-    hull = np.vstack([hull, hull[0]])
     figure_width = 5.2
     figure_height = min(10, max(5.5, 3.7 * (top - bottom) / (right - left) + 1.2))
     for kind in ("samples", "prediction"):
@@ -207,13 +213,10 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         else:
             with rasterio.open(display_path) as ds:
                 values = ds.read(1, out_shape=shape, masked=True)
-            image = ax.imshow(values, extent=extent, origin="upper", cmap="viridis", vmin=0, vmax=100,
+            image = ax.imshow(values, extent=extent, origin="upper", cmap="viridis", vmin=clip_min, vmax=clip_max,
                               interpolation="nearest")
-            finite = values.compressed()
-            extend = "both" if (finite < 0).any() and (finite > 100).any() else "min" if (finite < 0).any() else "max" if (finite > 100).any() else "neither"
-            colorbar = fig.colorbar(image, ax=ax, orientation="horizontal", pad=.04, fraction=.04, extend=extend)
+            colorbar = fig.colorbar(image, ax=ax, orientation="horizontal", pad=.04, fraction=.04)
             colorbar.set_label("预测扬花率 / %" if chinese else "Predicted flowering rate / %")
-            ax.plot(hull[:, 0], hull[:, 1], color="white", linestyle="--", linewidth=.8)
             title = "小麦扬花率预测分布" if chinese else "Predicted wheat flowering distribution"
             filename = "fig2_flowering_prediction"
         ax.set_title(title, fontsize=12, pad=10)
@@ -233,11 +236,15 @@ def main(argv=None):
     parser.add_argument("--label-ids", action="store_true")
     parser.add_argument("--tile-size", type=int, default=32)
     parser.add_argument("--dpi", type=int, default=600)
+    parser.add_argument("--clip-min", type=float, default=0., help="Lower prediction bound in percent")
+    parser.add_argument("--clip-max", type=float, default=100., help="Upper prediction bound in percent")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
     if args.tile_size < 1 or args.dpi < 72:
         parser.error("tile-size must be positive and dpi at least 72")
-    out = args.out_dir or args.data_root / "paper_figures"
+    if not np.isfinite([args.clip_min, args.clip_max]).all() or not 0 <= args.clip_min < args.clip_max <= 100:
+        parser.error("Clipping bounds must satisfy 0 <= clip-min < clip-max <= 100")
+    out = args.out_dir or args.data_root / "paper_figures_full"
     if out.exists() and any(out.iterdir()) and not args.overwrite:
         parser.error("Output directory is not empty; use another --out-dir or --overwrite")
     image = args.image or args.data_root / "wang/0510c.tif"
@@ -251,8 +258,6 @@ def main(argv=None):
     lower = samples[selected].min().to_numpy()
     upper = samples[selected].max().to_numpy()
     coords = samples[["x", "y"]].to_numpy()
-    hull = coords[ConvexHull(coords).vertices]
-    polygon = {"type": "Polygon", "coordinates": [np.vstack([hull, hull[0]]).tolist()]}
     out.mkdir(parents=True, exist_ok=True)
     with ExitStack() as stack:
         src = stack.enter_context(rasterio.open(image))
@@ -263,11 +268,7 @@ def main(argv=None):
             raise ValueError("Expected six bands on a north-up, unrotated grid")
         if not all(src.bounds.left <= x < src.bounds.right and src.bounds.bottom < y <= src.bounds.top for x, y in coords):
             raise ValueError("Some of the 33 measured sites fall outside the image")
-        margin = 8
-        requested = from_bounds(coords[:, 0].min() - margin, coords[:, 1].min() - margin,
-                                coords[:, 0].max() + margin, coords[:, 1].max() + margin, gt)
-        c0, r0 = max(0, int(np.floor(requested.col_off))), max(0, int(np.floor(requested.row_off)))
-        c1, r1 = min(src.width, int(np.ceil(requested.col_off + requested.width))), min(src.height, int(np.ceil(requested.row_off + requested.height)))
+        c0, r0, c1, r1 = 0, 0, src.width, src.height
         roi = Window(c0, r0, c1 - c0, r1 - r0)
         roi_transform = src.window_transform(roi)
         crop = stack.enter_context(rasterio.open(args.mask)) if args.mask else None
@@ -278,59 +279,75 @@ def main(argv=None):
         profile = dict(driver="GTiff", width=c1-c0, height=r1-r0, count=1, dtype="float32",
                        crs=src.crs, transform=roi_transform, nodata=NODATA, compress="deflate", tiled=True)
         raw_path, supported_path = out / "prediction_raw.tif", out / "prediction_supported.tif"
+        clipped_path = out / "prediction_clipped.tif"
         raw = stack.enter_context(rasterio.open(raw_path, "w", **profile))
         supported = stack.enter_context(rasterio.open(supported_path, "w", **profile))
-        counts = dict(raw_pixels=0, supported_pixels=0, raw_outside_0_100=0, supported_outside_0_100=0)
-        for dst in (raw, supported):
+        clipped = stack.enter_context(rasterio.open(clipped_path, "w", **profile))
+        counts = dict(raw_pixels=0, supported_pixels=0, raw_outside_0_100=0,
+                      supported_outside_0_100=0, clipped_low_pixels=0, clipped_high_pixels=0)
+        for dst in (raw, supported, clipped):
             dst.update_tags(units="percent", model="Ridge(alpha=10), SelectKBest(k=10), median imputation, standard scaling",
                             radius_m="1.0", training_n="33", clipping="None",
                             feature_order="Band statistics first, then spectral indices", selected_features=json.dumps(selected))
+        clipped.update_tags(clipping=f"[{args.clip_min}, {args.clip_max}]", role="Full-area publication map")
+        supported.update_tags(role="Training-feature range diagnostic only; not used for publication figure")
         for row in range(r0, r1, args.tile_size):
             height = min(args.tile_size, r1-row)
             for col in range(c0, c1, args.tile_size):
                 width = min(args.tile_size, c1-col)
                 tile = Window(col, row, width, height)
-                domain = geometry_mask([polygon], out_shape=(height, width), transform=src.window_transform(tile), invert=True)
+                domain = np.ones((height, width), dtype=bool)
                 if crop:
                     mask_values = crop.read(1, window=tile, masked=True).filled(0)
                     domain &= np.isfinite(mask_values) & (mask_values > 0)
                 prediction = np.full((height, width), NODATA, dtype="float32")
+                valid = np.zeros((height, width), dtype=bool)
                 accepted = np.zeros((height, width), dtype=bool)
                 if domain.any():
                     halo_window = Window(col-int(hx), row-int(hy), width+2*int(hx), height+2*int(hy))
                     halos = src.read(window=halo_window, boundless=True, masked=True, out_dtype="float64").filled(np.nan)
                     halos[~np.isfinite(halos)] = np.nan
                     cube = feature_cube(halos, footprint, selected)
-                    valid = domain & np.isfinite(cube).all(axis=-1)
+                    center_valid = np.isfinite(halos[:, hy:hy+height, hx:hx+width]).all(axis=0)
+                    valid = domain & center_valid & np.isfinite(cube).all(axis=-1)
                     if valid.any():
                         prediction[valid] = predict_selected(model, cube[valid])
+                    valid &= np.isfinite(prediction)
+                    prediction[~valid] = NODATA
                     accepted = valid & ((cube >= lower) & (cube <= upper)).all(axis=-1)
                     counts["raw_pixels"] += int(valid.sum())
                     counts["supported_pixels"] += int(accepted.sum())
                     outside = (prediction < 0) | (prediction > 100)
                     counts["raw_outside_0_100"] += int((valid & outside).sum())
                     counts["supported_outside_0_100"] += int((accepted & outside).sum())
+                    counts["clipped_low_pixels"] += int((valid & (prediction < args.clip_min)).sum())
+                    counts["clipped_high_pixels"] += int((valid & (prediction > args.clip_max)).sum())
                 dst_window = Window(col-c0, row-r0, width, height)
                 raw.write(prediction, 1, window=dst_window)
                 supported.write(np.where(accepted, prediction, NODATA).astype("float32"), 1, window=dst_window)
+                clipped.write(clip_predictions(prediction, valid, args.clip_min, args.clip_max), 1, window=dst_window)
             print(f"Predicted {row-r0+height}/{r1-r0} rows", flush=True)
         raw.close()
         supported.close()
-        if counts["supported_pixels"] == 0:
-            raise ValueError("No supported prediction pixels; inspect input imagery and training feature ranges")
+        clipped.close()
+        if counts["raw_pixels"] == 0:
+            raise ValueError("No valid prediction pixels; inspect input imagery and optional mask")
         chinese = font_setup(args.font_path)
         if not chinese:
             print("No Chinese font found: using English labels. Supply --font-path for Chinese labels.")
-        export_figures(src, roi, samples, supported_path, out, chinese, args.label_ids, args.dpi)
+        export_figures(src, roi, samples, clipped_path, out, chinese, args.label_ids, args.dpi,
+                       args.clip_min, args.clip_max)
         sample_columns = ["sample_id", "x", "y", "Flower_rat"]
         samples[sample_columns].to_csv(out / "mapped_samples_33.csv", index=False)
         manifest = dict(model="Fixed Ridge(alpha=10), k=10; fit on all 33 measured samples", radius_m=1.,
                         candidate_features=candidates, selected_features=selected, sample_ids=samples.sample_id.tolist(),
                         input_table_sha256=hashlib.sha256(table.read_bytes()).hexdigest(), image=str(image),
                         pixel_size_m=[gt.a, -gt.e], footprint_pixels=int(footprint.sum()),
-                        prediction_domain="Sample convex hull, intersect optional wheat mask; not a surveyed field boundary",
-                        displayed_prediction="Finite selected features, each within training min/max; no value clipping",
-                        caveat="Training feature ranges do not establish joint-distribution support or independent map accuracy",
+                        prediction_domain="Full source raster extent, intersect optional wheat mask; no sample hull restriction",
+                        displayed_prediction="prediction_clipped.tif; valid source centers and finite features; no training-range exclusion",
+                        clipping_min_percent=args.clip_min, clipping_max_percent=args.clip_max,
+                        diagnostic_prediction="prediction_supported.tif retains per-feature min/max screening for comparison only",
+                        caveat="Clipping bounds predictions; it does not improve independent accuracy or validate spatial extrapolation",
                         omitted_pixels="Show RGB background; not zero flowering rate", **counts)
         (out / "MAP_MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     print(f"Saved publication figures and GeoTIFFs: {out}")

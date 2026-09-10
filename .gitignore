@@ -36,6 +36,7 @@ client_delivery/03_prediction_maps/
 prediction_maps/
 sensitive_index_maps/
 paper_figures/
+paper_figures_full/
 paper_audit/correlation_corrected_*/
 
 # Generated caches
