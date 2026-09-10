@@ -1,6 +1,36 @@
 # 论文分析修正与运行命令
 
-本次修正不重新训练回归模型。新的相关性结果独立保存，原有模型结果和历史审计报告保留。
+## 新增：33个调查样点图与模型预测分布图
+
+如果 `/data/jiaxing` 只是数据目录，代码已单独克隆到 `/data/jiaxing/code`，执行：
+
+```bash
+git -C /data/jiaxing/code pull --ff-only origin main
+conda install -n rs -c conda-forge numpy pandas scipy scikit-learn matplotlib rasterio
+conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py --data-root /data/jiaxing
+```
+
+若还没有代码仓库，先运行 `git clone https://github.com/lwydesler/jiaxing-uav-wheat-analysis.git /data/jiaxing/code`。
+
+`/data/jiaxing/paper_figures/` 内包含：
+
+- `fig1_samples_33.png`、`.pdf`：仅显示有扬花率记录的33个样点，包含真实零值，排除空记录。以5月10日RGB合成为底图。
+- `fig2_flowering_prediction.png`、`.pdf`：5月10日、1.0 m圆形窗口、固定岭回归模型的预测分布。
+- `prediction_raw.tif`：33个样点凸包内有效特征位置的原始预测值。
+- `prediction_supported.tif`：进一步排除任一入选特征超出训练样本该特征最小/最大值的位置，用于论文图。
+- `mapped_samples_33.csv`、`MAP_MANIFEST.json`：实际绘图样点、选中特征、范围说明及像元计数。
+
+两张图使用相同地图范围，默认输出600 dpi PNG和PDF，配备比例尺、指北针和坐标。可加 `--label-ids` 显示样点编号。自动查找中文字体；找不到时使用英文标签，避免缺字。中文输出可安装Noto CJK字体后重新运行，或加 `--font-path /path/to/chinese-font.otf`。重复生成需添加 `--overwrite`。
+
+预测模型复用最终严格审计的候选列选择规则及固定流水线：训练集内中位数填补、SelectKBest(k=10)、标准化、Ridge(alpha=10)。制图时使用33个样点拟合最终模型，影像中只计算该模型实际选中的10个特征。每个窗口先计算波段统计量，再构建指数，与样点特征保持同一计算顺序。此流程生成模型预测图；前面的 `map_sensitive_index.py` 生成无量纲敏感指数图，两者不是同一张图。
+
+默认预测范围是样点凸包，不代表实际试验田边界。若提供与影像完全对齐的小麦区域单波段栅格，可增加 `--mask /path/to/wheat_mask.tif`，将输出范围限制在凸包与掩膜正值区域的交集。窗口统计仍使用原始邻域，掩膜仅限制输出位置。未显示预测颜色的位置保留RGB底图，不能解释为零扬花率。
+
+原始预测值不做0–100%裁剪。若出现超范围值，色标用延伸端表示，运行记录保留相应像元数；色标端点颜色不表示原始值已被截断。逐特征范围筛查也不保证联合特征分布内插或地图精度。图注建议注明：图中为基于33个样点拟合的1.0 m尺度岭回归预测结果，背景显示未制图位置；其空间独立验证性能引用论文模型评价结果，不将地图视为独立验证。
+
+---
+
+以下为此前的相关性修正流程，该流程不重新训练回归模型。新的相关性结果独立保存，原有模型结果和历史审计报告保留。上面的新增预测制图入口会使用全部33个样点拟合最终模型，但不覆盖交叉验证结果。
 
 ## 1. 更新代码与环境
 
