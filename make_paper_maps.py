@@ -199,7 +199,7 @@ def decorate(ax, extent, chinese):
 
 
 def export_figures(src, roi, samples, display_path, out, chinese, label_ids=False, dpi=600,
-                   clip_min=0., clip_max=100.):
+                   clip_min=0., clip_max=100., overlay_alpha=.55):
     left, bottom, right, top = window_bounds(roi, src.transform)
     extent = (left, right, bottom, top)
     ratio = min(1, 1800 / max(roi.width, roi.height))
@@ -214,7 +214,7 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
     rgb = np.nan_to_num(rgb, nan=1).transpose(1, 2, 0)
     figure_width = 5.2
     figure_height = min(10, max(5.5, 3.7 * (top - bottom) / (right - left) + 1.2))
-    for kind in ("samples", "prediction"):
+    for kind in ("samples", "prediction", "overlay"):
         fig, ax = plt.subplots(figsize=(figure_width, figure_height), layout="constrained")
         ax.imshow(rgb, extent=extent, origin="upper", interpolation="nearest")
         if kind == "samples":
@@ -231,16 +231,24 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
             with rasterio.open(display_path) as ds:
                 values = ds.read(1, out_shape=shape, masked=True)
             image = ax.imshow(values, extent=extent, origin="upper", cmap="viridis", vmin=clip_min, vmax=clip_max,
-                              interpolation="nearest")
-            colorbar = fig.colorbar(image, ax=ax, orientation="horizontal", pad=.04, fraction=.04)
+                              interpolation="nearest", alpha=overlay_alpha if kind == "overlay" else 1.)
+            # Keep the legend independent of RGB blending: it encodes prediction values.
+            legend = plt.cm.ScalarMappable(norm=image.norm, cmap=image.cmap)
+            colorbar = fig.colorbar(legend, ax=ax, orientation="horizontal", pad=.04, fraction=.04)
             colorbar.set_label("预测扬花率 / %" if chinese else "Predicted flowering rate / %")
             title = "小麦扬花率预测分布" if chinese else "Predicted wheat flowering distribution"
             filename = "fig2_flowering_prediction"
+            if kind == "overlay":
+                filename = "fig2_flowering_prediction_overlay"
         ax.set_title(title, fontsize=12, pad=10)
         decorate(ax, extent, chinese)
         fig.savefig(out / f"{filename}.png", dpi=dpi)
         fig.savefig(out / f"{filename}.pdf", dpi=dpi)
         plt.close(fig)
+    (out / "FIGURE_STYLE.json").write_text(json.dumps(dict(
+        overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
+        note="RGB texture is for orientation; prediction values and spatial support are unchanged"
+    ), indent=2) + "\n", encoding="utf-8")
 
 
 def main(argv=None):
@@ -253,6 +261,10 @@ def main(argv=None):
     parser.add_argument("--label-ids", action="store_true")
     parser.add_argument("--tile-size", type=int, default=32)
     parser.add_argument("--dpi", type=int, default=600)
+    parser.add_argument("--overlay-alpha", type=float, default=.55,
+                        help="Prediction opacity over RGB (0 to 1); also retains the opaque comparison figure")
+    parser.add_argument("--figures-only", action="store_true",
+                        help="Reuse existing prediction_clipped.tif and MAP_MANIFEST.json; skip prediction")
     parser.add_argument("--clip-min", type=float, default=0., help="Lower prediction bound in percent")
     parser.add_argument("--clip-max", type=float, default=100., help="Upper prediction bound in percent")
     parser.add_argument("--extent", choices=("study-area", "full-image"), default="study-area",
@@ -261,6 +273,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.tile_size < 1 or args.dpi < 72:
         parser.error("tile-size must be positive and dpi at least 72")
+    if not np.isfinite(args.overlay_alpha) or not 0 <= args.overlay_alpha <= 1:
+        parser.error("overlay-alpha must be between 0 and 1")
     if not np.isfinite([args.clip_min, args.clip_max]).all() or not 0 <= args.clip_min < args.clip_max <= 100:
         parser.error("Clipping bounds must satisfy 0 <= clip-min < clip-max <= 100")
     out = args.out_dir or args.data_root / "paper_figures_full"
@@ -269,6 +283,26 @@ def main(argv=None):
     image = args.image or args.data_root / "wang/0510c.tif"
     table = args.data_root / "analysis/all_features_targets.csv"
     samples = measured_samples(table)
+    if args.figures_only:
+        manifest = json.loads((out / "MAP_MANIFEST.json").read_text(encoding="utf-8"))
+        if (manifest.get("input_table_sha256") != hashlib.sha256(table.read_bytes()).hexdigest()
+                or manifest.get("map_extent") != args.extent
+                or manifest.get("clipping_min_percent") != args.clip_min
+                or manifest.get("clipping_max_percent") != args.clip_max
+                or Path(manifest["image"]).resolve() != image.resolve()):
+            parser.error("Existing predictions do not match these inputs/extent/clipping; rerun without --figures-only")
+        if args.mask:
+            parser.error("--figures-only reuses the saved prediction mask; omit --mask or recompute predictions")
+        with rasterio.open(image) as src, rasterio.open(out / "prediction_clipped.tif") as ds:
+            roi = map_window(src.transform, src.width, src.height, samples[["x", "y"]].to_numpy(), args.extent)
+            if (ds.crs != src.crs or ds.transform != src.window_transform(roi)
+                    or ds.shape != (int(roi.height), int(roi.width))):
+                parser.error("Saved prediction grid does not match the requested study area")
+            export_figures(src, roi, samples, out / "prediction_clipped.tif", out,
+                           font_setup(args.font_path), args.label_ids, args.dpi,
+                           args.clip_min, args.clip_max, args.overlay_alpha)
+        print(f"Redrew figures from existing predictions: {out}")
+        return
     model, candidates, selected = fit_final_model(samples)
     print(f"Measured samples: {len(samples)}; Ridge selected features: {selected}", flush=True)
     # Confirm selected-only raster prediction matches the complete fitted pipeline.
@@ -358,7 +392,7 @@ def main(argv=None):
         if not chinese:
             print("No Chinese font found: using English labels. Supply --font-path for Chinese labels.")
         export_figures(src, roi, samples, clipped_path, out, chinese, args.label_ids, args.dpi,
-                       args.clip_min, args.clip_max)
+                       args.clip_min, args.clip_max, args.overlay_alpha)
         sample_columns = ["sample_id", "x", "y", "Flower_rat"]
         samples[sample_columns].to_csv(out / "mapped_samples_33.csv", index=False)
         manifest = dict(model="Fixed Ridge(alpha=10), k=10; fit on all 33 measured samples", radius_m=1.,

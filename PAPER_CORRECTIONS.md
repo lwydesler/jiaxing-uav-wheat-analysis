@@ -7,7 +7,8 @@
 如果 `/data/jiaxing` 只是数据目录，代码已单独克隆到 `/data/jiaxing/code`，执行：
 
 ```bash
-git -C /data/jiaxing/code pull --ff-only origin main
+git -C /data/jiaxing/code fetch origin refs/heads/main:refs/remotes/origin/main
+git -C /data/jiaxing/code merge --ff-only refs/remotes/origin/main
 conda install -n rs -c conda-forge numpy pandas scipy scikit-learn matplotlib rasterio
 conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py --data-root /data/jiaxing --extent study-area --clip-min 0 --clip-max 100
 ```
@@ -18,12 +19,21 @@ conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py
 
 - `fig1_samples_33.png`、`.pdf`：仅显示有扬花率记录的33个样点，包含真实零值，排除空记录。以5月10日RGB合成为底图。
 - `fig2_flowering_prediction.png`、`.pdf`：5月10日、1.0 m圆形窗口、固定岭回归模型的预测分布。
+- `fig2_flowering_prediction_overlay.png`、`.pdf`：同一预测结果以55%不透明度叠加RGB底图，保留冠层纹理作为定位参考。
 - `prediction_raw.tif`：研究区矩形范围内有效位置的原始预测值，不受样点凸包或训练特征范围限制。
 - `prediction_clipped.tif`：上下限截断后的研究区全覆盖预测值，用于PNG/PDF论文图；默认小于0的值设为0，大于100的值设为100。
 - `prediction_supported.tif`：保留训练特征范围筛查的辅助对照，不用于新版论文图，该文件仍可能有空洞。
 - `mapped_samples_33.csv`、`MAP_MANIFEST.json`：实际绘图样点、选中特征、范围说明及像元计数。
 
 两张图使用相同地图范围，默认输出600 dpi PNG和PDF，配备比例尺、指北针和坐标。可加 `--label-ids` 显示样点编号。自动查找中文字体；找不到时使用英文标签，避免缺字。中文输出可安装Noto CJK字体后重新运行，或加 `--font-path /path/to/chinese-font.otf`。重复生成需添加 `--overwrite`。
+
+已经生成预测栅格后，可直接重绘，无需重新拟合模型或计算全区特征：
+
+```bash
+conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py --data-root /data/jiaxing --extent study-area --figures-only --overlay-alpha 0.55 --overwrite
+```
+
+`--overlay-alpha`表示预测色层不透明度，0.4更突出底图，0.7更突出预测颜色。重绘会核验原有输入表摘要、影像路径、地图范围、截断上下限及栅格网格；不匹配时须重新计算。`FIGURE_STYLE.json`记录绘图参数，已有预测GeoTIFF和模型指标不变。图例表示原始颜色映射，叠加后的实际颜色会受底图亮度影响。图注建议注明：“预测色层以55%不透明度叠加于RGB底图；底图纹理仅辅助空间定位，不代表预测的独立空间分辨能力。”本功能不自动识别道路或小麦边界；若需排除非小麦区域，应提供可靠的区域掩膜并重新计算。
 
 预测模型复用最终严格审计的候选列选择规则及固定流水线：训练集内中位数填补、SelectKBest(k=10)、标准化、Ridge(alpha=10)。制图时使用33个样点拟合最终模型，影像中只计算该模型实际选中的10个特征。每个窗口先计算波段统计量，再构建指数，与样点特征保持同一计算顺序。此流程生成模型预测图；前面的 `map_sensitive_index.py` 生成无量纲敏感指数图，两者不是同一张图。
 
