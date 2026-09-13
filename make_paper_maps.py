@@ -175,13 +175,52 @@ def font_setup(font_path=None):
     return chinese
 
 
-def format_dms(value, longitude=True):
-    """Format geographic coordinates to 0.1 arcsecond, carrying rounded seconds."""
-    total_tenths = int(round(abs(value) * 36000))
-    degrees, remainder = divmod(total_tenths, 36000)
-    minutes, seconds_tenths = divmod(remainder, 600)
+def format_dms(value, longitude=True, decimals=1):
+    """Format geographic coordinates, carrying rounded seconds."""
+    factor = 10 ** decimals
+    total_units = int(round(abs(value) * 3600 * factor))
+    degrees, remainder = divmod(total_units, 3600 * factor)
+    minutes, seconds_units = divmod(remainder, 60 * factor)
     hemisphere = ("E" if value >= 0 else "W") if longitude else ("N" if value >= 0 else "S")
-    return f"{degrees}°{minutes:02d}′{seconds_tenths / 10:04.1f}″{hemisphere}"
+    return f"{degrees}°{minutes:02d}′{seconds_units / factor:0{3 + decimals}.{decimals}f}″{hemisphere}"
+
+
+def export_sample_table(samples, out, crs="EPSG:32651"):
+    """Export measured rows using the same original IDs as the map."""
+    rows = samples.sort_values("sample_id").copy()
+    lon, lat = transform_coords(crs, "EPSG:4326", rows.x.tolist(), rows.y.tolist())
+    counts = rows.get("Flower_num", pd.Series(np.nan, index=rows.index))
+    known = counts.notna()
+    if known.any() and (not np.allclose(counts[known], np.round(counts[known]))
+                       or not counts[known].between(0, 30).all()
+                       or not np.allclose(counts[known] / 30 * 100, rows.loc[known, "Flower_rat"], atol=.005)):
+        raise ValueError("Flower_num is inconsistent with a 30-head survey and Flower_rat")
+    table = pd.DataFrame({
+        "样点编号": rows.sample_id.to_numpy(),
+        "经度（WGS84）": [format_dms(v, decimals=2) for v in lon],
+        "纬度（WGS84）": [format_dms(v, False, decimals=2) for v in lat],
+        "扬花穗数（穗）": counts.to_numpy(),
+        "扬花率（%）": rows.Flower_rat.to_numpy(),
+    })
+    table["扬花穗数（穗）"] = table["扬花穗数（穗）"].astype("Int64")
+    out.mkdir(parents=True, exist_ok=True)
+    table.to_csv(out / "flowering_samples_33.csv", index=False, encoding="utf-8-sig", float_format="%.2f")
+    lines = ["# 33个小麦扬花率调查样点明细", "",
+             "调查日期：2026年5月10日；每个样方调查30穗，面积为1 ft²（0.0929 m²）。编号与样点分布图中黄圈内编号一致。", "",
+             "| 样点编号 | 经度（WGS84） | 纬度（WGS84） | 扬花穗数/穗 | 扬花率/% |",
+             "| ---: | --- | --- | ---: | ---: |"]
+    for sid, lo, la, count, rate in table.itertuples(index=False, name=None):
+        count_text = "—" if pd.isna(count) else str(int(count))
+        lines.append(f"| {sid} | {lo} | {la} | {count_text} | {rate:.2f} |")
+    rates = rows.Flower_rat
+    lines += ["", "数据来源：analysis/all_features_targets.csv中的sample_id、x、y、Flower_num及Flower_rat；仅保留有扬花率记录的33个样点。扬花穗数缺失时记为‘—’，不由扬花率反推。", "",
+              "## 扬花率分布汇总", "", "| 扬花率区间/% | 样点数 | 占比/% |", "| --- | ---: | ---: |"]
+    for label, mask in [("0～25", rates.between(0, 25)), ("＞25～50", (rates > 25) & (rates <= 50)),
+                        ("＞50～75", (rates > 50) & (rates <= 75)), ("＞75～100", (rates > 75) & (rates <= 100))]:
+        n = int(mask.sum())
+        lines.append(f"| {label} | {n} | {n / len(rows) * 100:.2f} |")
+    lines += ["", f"扬花率范围为{rates.min():.2f}%～{rates.max():.2f}%，均值±样本标准差为{rates.mean():.2f}%±{rates.std(ddof=1):.2f}%，中位数为{rates.median():.2f}%。上述分组仅用于描述分布，不代表不同物候阶段的判定标准。", ""]
+    (out / "flowering_samples_33.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def decorate(ax, extent, chinese, crs="EPSG:32651"):
@@ -227,7 +266,7 @@ def decorate(ax, extent, chinese, crs="EPSG:32651"):
     ax.text(x + length / 2, y + (top - bottom) * .018, f"{length:g} m", ha="center", path_effects=effects)
 
 
-def export_figures(src, roi, samples, display_path, out, chinese, label_ids=False, dpi=600,
+def export_figures(src, roi, samples, display_path, out, chinese, label_ids=True, dpi=600,
                    clip_min=0., clip_max=100., overlay_alpha=.55):
     left, bottom, right, top = window_bounds(roi, src.transform)
     extent = (left, right, bottom, top)
@@ -247,12 +286,12 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         fig, ax = plt.subplots(figsize=(figure_width, figure_height), layout="constrained")
         ax.imshow(rgb, extent=extent, origin="upper", interpolation="nearest")
         if kind == "samples":
-            ax.scatter(samples.x, samples.y, s=27, c="#ffcf45", edgecolors="#222222", linewidths=.65,
+            ax.scatter(samples.x, samples.y, s=80 if label_ids else 27, c="#ffcf45", edgecolors="#222222", linewidths=.65,
                        label="扬花率调查样点（n=33）" if chinese else "Measured flowering sites (n=33)", zorder=4)
             if label_ids:
                 for row in samples.itertuples():
-                    ax.annotate(str(row.sample_id), (row.x, row.y), xytext=(3, 3), textcoords="offset points",
-                                fontsize=6, path_effects=[patheffects.withStroke(linewidth=2, foreground="white")])
+                    ax.text(row.x, row.y, str(row.sample_id), ha="center", va="center",
+                            fontsize=6.5, fontweight="bold", color="#111111", zorder=5)
             ax.legend(loc="upper left", fontsize=8, framealpha=.95)
             title = "小麦扬花率调查样点分布" if chinese else "Distribution of flowering survey sites"
             filename = "fig1_samples_33"
@@ -280,12 +319,14 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         plt.close(fig)
     (out / "FIGURE_STYLE.json").write_text(json.dumps(dict(
         overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
+        sample_labels="Original sample_id centered inside yellow circles" if label_ids else "Unlabelled",
         coordinate_labels="WGS84 EPSG:4326, degrees/minutes/seconds (0.1 arcsecond) at bottom/left frame positions",
         raster_crs=str(src.crs), north_arrow="White with black outline; true north",
         latitude_tick_rotation=90, prediction_colorbar="Vertical on right; horizontal label below",
         scale_bar="White line with black outline; metres",
         note="RGB texture is for orientation; prediction values and spatial support are unchanged"
     ), indent=2) + "\n", encoding="utf-8")
+    export_sample_table(samples, out, src.crs)
 
 
 def main(argv=None):
@@ -295,7 +336,8 @@ def main(argv=None):
     parser.add_argument("--out-dir", type=Path)
     parser.add_argument("--mask", type=Path, help="Optional aligned wheat-area raster, positive values retained")
     parser.add_argument("--font-path", type=Path)
-    parser.add_argument("--label-ids", action="store_true")
+    parser.add_argument("--label-ids", action=argparse.BooleanOptionalAction, default=True,
+                        help="Center original sample IDs inside enlarged yellow circles (default)")
     parser.add_argument("--tile-size", type=int, default=32)
     parser.add_argument("--dpi", type=int, default=600)
     parser.add_argument("--overlay-alpha", type=float, default=.55,

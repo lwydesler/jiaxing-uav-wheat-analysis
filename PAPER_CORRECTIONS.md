@@ -24,8 +24,11 @@ conda run --no-capture-output -n rs python /data/jiaxing/code/make_paper_maps.py
 - `prediction_clipped.tif`：上下限截断后的研究区全覆盖预测值，用于PNG/PDF论文图；默认小于0的值设为0，大于100的值设为100。
 - `prediction_supported.tif`：保留训练特征范围筛查的辅助对照，不用于新版论文图，该文件仍可能有空洞。
 - `mapped_samples_33.csv`、`MAP_MANIFEST.json`：实际绘图样点、选中特征、范围说明及像元计数。
+- `flowering_samples_33.csv`、`.md`：与图中编号一致的33个样点明细，含WGS84度分秒经纬度、原始扬花穗数及扬花率；Markdown另附四个扬花率区间的样本分布汇总。CSV可直接用Excel打开。
 
 两张图使用相同地图范围，默认输出600 dpi PNG和PDF，配备比例尺、指北针和坐标。可加 `--label-ids` 显示样点编号。自动查找中文字体；找不到时使用英文标签，避免缺字。中文输出可安装Noto CJK字体后重新运行，或加 `--font-path /path/to/chinese-font.otf`。重复生成需添加 `--overwrite`。
+
+样点图现默认在放大的黄色圆圈内居中显示原始样点编号，黑色加粗数字，位置不偏移。`--no-label-ids`可恢复无编号样式。正常制图和`--figures-only`均会同步导出样点表。仓库`paper_tables/flowering_samples_33.md`提供基于当前数据的可直接阅读版本，编号沿用sample_id，不另行重排。
 
 已经生成预测栅格后，可直接重绘，无需重新拟合模型或计算全区特征：
 
