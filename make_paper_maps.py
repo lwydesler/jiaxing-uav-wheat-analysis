@@ -204,6 +204,9 @@ def decorate(ax, extent, chinese, crs="EPSG:32651"):
     ax.xaxis.set_major_formatter(FuncFormatter(longitude))
     ax.yaxis.set_major_formatter(FuncFormatter(latitude))
     ax.tick_params(labelsize=8)
+    ax.tick_params(axis="y", labelrotation=90, pad=4)
+    for label in ax.get_yticklabels():
+        label.set_verticalalignment("center")
     effects = [patheffects.withStroke(linewidth=2.5, foreground="white")]
     north_effects = [patheffects.withStroke(linewidth=2.5, foreground="black")]
     # Account for meridian convergence so N indicates true north.
@@ -219,7 +222,8 @@ def decorate(ax, extent, chinese, crs="EPSG:32651"):
     width = right - left
     length = next((v for v in [50, 20, 10, 5, 2, 1] if v <= width * .3), width * .2)
     x, y = left + width * .07, bottom + (top - bottom) * .06
-    ax.plot([x, x + length], [y, y], color="black", linewidth=2.5, path_effects=effects)
+    ax.plot([x, x + length], [y, y], color="white", linewidth=2.5,
+            path_effects=[patheffects.withStroke(linewidth=4, foreground="black")])
     ax.text(x + length / 2, y + (top - bottom) * .018, f"{length:g} m", ha="center", path_effects=effects)
 
 
@@ -259,7 +263,8 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
                               interpolation="nearest", alpha=overlay_alpha if kind == "overlay" else 1.)
             # Keep the legend independent of RGB blending: it encodes prediction values.
             legend = plt.cm.ScalarMappable(norm=image.norm, cmap=image.cmap)
-            colorbar = fig.colorbar(legend, ax=ax, orientation="horizontal", pad=.04, fraction=.04)
+            colorbar = fig.colorbar(legend, ax=ax, orientation="vertical", location="right",
+                                   pad=.025, fraction=.035, shrink=.8, aspect=35)
             colorbar.set_label("预测扬花率 / %" if chinese else "Predicted flowering rate / %")
             title = "小麦扬花率预测分布" if chinese else "Predicted wheat flowering distribution"
             filename = "fig2_flowering_prediction"
@@ -274,6 +279,8 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
         coordinate_labels="WGS84 EPSG:4326, degrees/minutes/seconds (0.1 arcsecond) at bottom/left frame positions",
         raster_crs=str(src.crs), north_arrow="White with black outline; true north",
+        latitude_tick_rotation=90, prediction_colorbar="Vertical on right",
+        scale_bar="White line with black outline; metres",
         note="RGB texture is for orientation; prediction values and spatial support are unchanged"
     ), indent=2) + "\n", encoding="utf-8")
 
