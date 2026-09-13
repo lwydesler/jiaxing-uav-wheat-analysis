@@ -263,23 +263,26 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
                               interpolation="nearest", alpha=overlay_alpha if kind == "overlay" else 1.)
             # Keep the legend independent of RGB blending: it encodes prediction values.
             legend = plt.cm.ScalarMappable(norm=image.norm, cmap=image.cmap)
+            # Reserve room for the horizontal caption beneath the narrow bar.
+            fig.get_layout_engine().set(rect=(0, 0, .94, 1))
             colorbar = fig.colorbar(legend, ax=ax, orientation="vertical", location="right",
-                                   pad=.025, fraction=.035, shrink=.8, aspect=35)
-            colorbar.set_label("预测扬花率 / %" if chinese else "Predicted flowering rate / %")
+                                   pad=.08, fraction=.035, shrink=.8, aspect=35)
+            colorbar.ax.set_xlabel("预测扬花率\n（%）" if chinese else "Predicted\nflowering rate\n(%)",
+                                   fontsize=8, labelpad=8)
             title = "小麦扬花率预测分布" if chinese else "Predicted wheat flowering distribution"
             filename = "fig2_flowering_prediction"
             if kind == "overlay":
                 filename = "fig2_flowering_prediction_overlay"
         ax.set_title(title, fontsize=12, pad=10)
         decorate(ax, extent, chinese, src.crs)
-        fig.savefig(out / f"{filename}.png", dpi=dpi)
-        fig.savefig(out / f"{filename}.pdf", dpi=dpi)
+        fig.savefig(out / f"{filename}.png", dpi=dpi, bbox_inches="tight", pad_inches=.06)
+        fig.savefig(out / f"{filename}.pdf", dpi=dpi, bbox_inches="tight", pad_inches=.06)
         plt.close(fig)
     (out / "FIGURE_STYLE.json").write_text(json.dumps(dict(
         overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
         coordinate_labels="WGS84 EPSG:4326, degrees/minutes/seconds (0.1 arcsecond) at bottom/left frame positions",
         raster_crs=str(src.crs), north_arrow="White with black outline; true north",
-        latitude_tick_rotation=90, prediction_colorbar="Vertical on right",
+        latitude_tick_rotation=90, prediction_colorbar="Vertical on right; horizontal label below",
         scale_bar="White line with black outline; metres",
         note="RGB texture is for orientation; prediction values and spatial support are unchanged"
     ), indent=2) + "\n", encoding="utf-8")
