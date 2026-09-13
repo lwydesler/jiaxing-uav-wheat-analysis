@@ -13,12 +13,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager, patheffects
-from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from matplotlib.ticker import MaxNLocator, FuncFormatter
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 import pandas as pd
 import rasterio
 from rasterio.windows import Window, from_bounds, bounds as window_bounds
+from rasterio.warp import transform as transform_coords
 
 from map_sensitive_index import circular_footprint
 from paper_audit.audit_scripts.run_final_strict_model import (
@@ -174,23 +175,38 @@ def font_setup(font_path=None):
     return chinese
 
 
-def decorate(ax, extent, chinese):
+def decorate(ax, extent, chinese, crs="EPSG:32651"):
     left, right, bottom, top = extent
     ax.set_xlim(left, right)
     ax.set_ylim(bottom, top)
     ax.set_aspect("equal")
-    ax.set_xlabel("东向坐标 / m" if chinese else "Easting / m")
-    ax.set_ylabel("北向坐标 / m" if chinese else "Northing / m")
+    ax.set_xlabel("经度 / °E" if chinese else "Longitude / °E")
+    ax.set_ylabel("纬度 / °N" if chinese else "Latitude / °N")
+    # Label the actual bottom/left frame positions in WGS84, while retaining
+    # the projected image grid and metre-based scale bar without resampling.
+    def longitude(x, _):
+        lon, _lat = transform_coords(crs, "EPSG:4326", [x], [bottom])
+        return f"{lon[0]:.5f}"
+    def latitude(y, _):
+        _lon, lat = transform_coords(crs, "EPSG:4326", [left], [y])
+        return f"{lat[0]:.5f}"
     for axis in (ax.xaxis, ax.yaxis):
-        axis.set_major_locator(MaxNLocator(4))
-        formatter = ScalarFormatter(useOffset=False)
-        formatter.set_scientific(False)
-        axis.set_major_formatter(formatter)
+        axis.set_major_locator(MaxNLocator(3))
+    ax.xaxis.set_major_formatter(FuncFormatter(longitude))
+    ax.yaxis.set_major_formatter(FuncFormatter(latitude))
     ax.tick_params(labelsize=8)
     effects = [patheffects.withStroke(linewidth=2.5, foreground="white")]
-    ax.annotate("N", xy=(.92, .94), xytext=(.92, .84), xycoords="axes fraction",
-                ha="center", va="center", fontsize=12, fontweight="bold", path_effects=effects,
-                arrowprops=dict(arrowstyle="-|>", color="black", lw=1.5))
+    north_effects = [patheffects.withStroke(linewidth=2.5, foreground="black")]
+    # Account for meridian convergence so N indicates true north.
+    anchor_x, anchor_y = left + .92 * (right-left), bottom + .84 * (top-bottom)
+    lon, lat = transform_coords(crs, "EPSG:4326", [anchor_x], [anchor_y])
+    nx, ny = transform_coords("EPSG:4326", crs, [lon[0]], [lat[0] + .001])
+    arrow_dx = .10 * (nx[0]-anchor_x) / (ny[0]-anchor_y) * (top-bottom) / (right-left)
+    north = ax.annotate("N", xy=(.92 + arrow_dx, .94), xytext=(.92, .84), xycoords="axes fraction",
+                ha="center", va="center", fontsize=12, fontweight="bold", color="white",
+                path_effects=north_effects,
+                arrowprops=dict(arrowstyle="-|>", color="white", lw=1.5))
+    north.arrow_patch.set_path_effects(north_effects)
     width = right - left
     length = next((v for v in [50, 20, 10, 5, 2, 1] if v <= width * .3), width * .2)
     x, y = left + width * .07, bottom + (top - bottom) * .06
@@ -241,12 +257,14 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
             if kind == "overlay":
                 filename = "fig2_flowering_prediction_overlay"
         ax.set_title(title, fontsize=12, pad=10)
-        decorate(ax, extent, chinese)
+        decorate(ax, extent, chinese, src.crs)
         fig.savefig(out / f"{filename}.png", dpi=dpi)
         fig.savefig(out / f"{filename}.pdf", dpi=dpi)
         plt.close(fig)
     (out / "FIGURE_STYLE.json").write_text(json.dumps(dict(
         overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
+        coordinate_labels="WGS84 EPSG:4326, decimal degrees at bottom/left frame positions",
+        raster_crs=str(src.crs), north_arrow="White with black outline; true north",
         note="RGB texture is for orientation; prediction values and spatial support are unchanged"
     ), indent=2) + "\n", encoding="utf-8")
 
