@@ -175,21 +175,30 @@ def font_setup(font_path=None):
     return chinese
 
 
+def format_dms(value, longitude=True):
+    """Format geographic coordinates to 0.1 arcsecond, carrying rounded seconds."""
+    total_tenths = int(round(abs(value) * 36000))
+    degrees, remainder = divmod(total_tenths, 36000)
+    minutes, seconds_tenths = divmod(remainder, 600)
+    hemisphere = ("E" if value >= 0 else "W") if longitude else ("N" if value >= 0 else "S")
+    return f"{degrees}°{minutes:02d}′{seconds_tenths / 10:04.1f}″{hemisphere}"
+
+
 def decorate(ax, extent, chinese, crs="EPSG:32651"):
     left, right, bottom, top = extent
     ax.set_xlim(left, right)
     ax.set_ylim(bottom, top)
     ax.set_aspect("equal")
-    ax.set_xlabel("经度 / °E" if chinese else "Longitude / °E")
-    ax.set_ylabel("纬度 / °N" if chinese else "Latitude / °N")
+    ax.set_xlabel("经度" if chinese else "Longitude")
+    ax.set_ylabel("纬度" if chinese else "Latitude")
     # Label the actual bottom/left frame positions in WGS84, while retaining
     # the projected image grid and metre-based scale bar without resampling.
     def longitude(x, _):
         lon, _lat = transform_coords(crs, "EPSG:4326", [x], [bottom])
-        return f"{lon[0]:.5f}"
+        return format_dms(lon[0], longitude=True)
     def latitude(y, _):
         _lon, lat = transform_coords(crs, "EPSG:4326", [left], [y])
-        return f"{lat[0]:.5f}"
+        return format_dms(lat[0], longitude=False)
     for axis in (ax.xaxis, ax.yaxis):
         axis.set_major_locator(MaxNLocator(3))
     ax.xaxis.set_major_formatter(FuncFormatter(longitude))
@@ -263,7 +272,7 @@ def export_figures(src, roi, samples, display_path, out, chinese, label_ids=Fals
         plt.close(fig)
     (out / "FIGURE_STYLE.json").write_text(json.dumps(dict(
         overlay_alpha=overlay_alpha, dpi=dpi, rgb_bands=[3, 2, 1],
-        coordinate_labels="WGS84 EPSG:4326, decimal degrees at bottom/left frame positions",
+        coordinate_labels="WGS84 EPSG:4326, degrees/minutes/seconds (0.1 arcsecond) at bottom/left frame positions",
         raster_crs=str(src.crs), north_arrow="White with black outline; true north",
         note="RGB texture is for orientation; prediction values and spatial support are unchanged"
     ), indent=2) + "\n", encoding="utf-8")
